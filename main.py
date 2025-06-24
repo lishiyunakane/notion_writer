@@ -67,15 +67,16 @@ async def batch_save(data: NotionPayload):
 def ping():
     return {"status": "ok"}
 
-# 查询当天待复习词条
 @app.get("/api/review")
 def review(date: str):
+    # 当日以前に復習すべきものを取得
     response = notion.databases.query(
         **{
             "database_id": database_id,
             "filter": {
                 "and": [
-                    {"property": "NextReview", "date": {"equals": date}},
+                    # on_or_before で当日以前を取る
+                    {"property": "NextReview", "date": {"on_or_before": date}},
                     {"property": "Mastered", "checkbox": {"equals": False}},
                 ]
             }
@@ -86,12 +87,13 @@ def review(date: str):
         prop = res["properties"]
         items.append({
             "Title": prop["Title"]["title"][0]["plain_text"] if prop["Title"]["title"] else "",
+            "CN_Mean": prop["CN_Mean"]["rich_text"][0]["plain_text"] if prop["CN_Mean"]["rich_text"] else "",
             "Tags": [tag["name"] for tag in prop["Tags"]["multi_select"]],
             "LearnCount": prop["LearnCount"]["number"],
             "NextReview": prop["NextReview"]["date"]["start"] if prop["NextReview"]["date"] else "",
-            "Mastered": prop["Mastered"]["checkbox"],
         })
     return {"items": items}
+
 
 # 标记已复习词条并推进下次复习
 @app.post("/api/mark_done")
