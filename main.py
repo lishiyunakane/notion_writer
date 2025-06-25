@@ -28,6 +28,8 @@ class NotionItem(BaseModel):
     LearnCount: Optional[int] = 0
     NextReview: Optional[str] = None
     Mastered: Optional[bool] = False
+    User: Optional[str] = ""  
+    Language: Optional[str] = ""  
 
 class NotionPayload(BaseModel):
     items: List[NotionItem]
@@ -53,6 +55,9 @@ async def batch_save(data: NotionPayload):
                 "LearnCount": {"number": item.LearnCount or 0},
                 "NextReview": {"date": {"start": item.NextReview or item.Date}},
                 "Mastered": {"checkbox": item.Mastered or False},
+                "User": {"select": {"name": item.User}},
+                "Language": {"select": {"name": item.Language}},
+                
             }
             notion.pages.create(
                 parent={"database_id": database_id},
@@ -68,7 +73,7 @@ def ping():
     return {"status": "ok"}
 
 @app.get("/api/review")
-def review(date: str):
+def review(date: str, user: str = Query(..., description="用户"),  language: str = Query("Japanese", description="语言")):
     # 当日以前に復習すべきものを取得
     response = notion.databases.query(
         **{
@@ -78,6 +83,8 @@ def review(date: str):
                     # on_or_before で当日以前を取る
                     {"property": "NextReview", "date": {"on_or_before": date}},
                     {"property": "Mastered", "checkbox": {"equals": False}},
+                    {"property": "User", "select": {"equals": user}},
+                    {"property": "Language", "select": {"equals": language}}, 
                 ]
             }
         }
@@ -99,6 +106,8 @@ def review(date: str):
 @app.post("/api/mark_done")
 def mark_done(data: dict = Body(...)):
     titles = data["titles"]
+    user = data.get("user")
+    language = data.get("language", "Japanese")
     today = datetime.today()
     interval = [1, 2, 4, 7, 15, 30]
 
@@ -106,7 +115,10 @@ def mark_done(data: dict = Body(...)):
         # 查询词条
         response = notion.databases.query(
             database_id=database_id,
-            filter={"property": "Title", "title": {"equals": title}}
+            filter={"property": "Title", "title": {"equals": title},
+                    {"property": "User", "select": {"equals": user}},
+                    {"property": "Language", "select": {"equals": language}},
+                   }
         )
         if response["results"]:
             page = response["results"][0]
