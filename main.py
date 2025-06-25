@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI, Body, Query
 from pydantic import BaseModel
 from typing import List, Optional
 from notion_client import Client
