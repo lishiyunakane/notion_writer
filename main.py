@@ -115,10 +115,14 @@ def mark_done(data: dict = Body(...)):
         # 查询词条
         response = notion.databases.query(
             database_id=database_id,
-            filter={"property": "Title", "title": {"equals": title},
+            filter={
+                "and": [
+                    {"property": "Title", "title": {"equals": title}},
                     {"property": "User", "select": {"equals": user}},
                     {"property": "Language", "select": {"equals": language}},
-                   }
+                ]
+            }
+
         )
         if response["results"]:
             page = response["results"][0]
